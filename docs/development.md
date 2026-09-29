@@ -55,8 +55,9 @@ for annotations. Compiler controls are in `tests/delphi/`.
 The build uses Delphi 7 Enterprise 7.0.4.453. Setup extracts the pinned compiler
 and libraries without running an installer. The hooks and manifests in
 `toolchain/delphi/` reproduce unit order, startup metadata, reference cells and
-timestamps. One scoped compatibility hook initializes an undefined compiler
-field for `GetMusicFile`, reproducing its native exception-frame teardown.
+timestamps. One scoped [compatibility hook](music-hook.md) sets an otherwise
+uninitialized compiler field for `GetMusicFile`, reproducing its native
+exception-frame teardown.
 Compiler preparation needs no game executable; the output is not post-processed.
 
 ## Optional IDA integration
