@@ -1,0 +1,68 @@
+name: Build and verify
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux prerequisites
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential clang python3 python3-venv p7zip-full trash-cli wine wine32:i386 xvfb xauth locales
+          sudo locale-gen ru_RU.UTF-8
+      - name: Rust
+        run: |
+          rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.90.0
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ubuntu-24.04-rust-1.90-${{ hashFiles('Cargo.lock', 'toolchain/**/*.rs', 'toolchain/compiler/*.dpr', 'tests/**') }}
+          restore-keys: ubuntu-24.04-rust-1.90-
+      - name: Tool tests
+        run: |
+          cargo fmt --all -- --check
+          cargo test --locked --all-targets
+          cargo clippy --locked --all-targets -- -D warnings
+          python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Cache compiler inputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            .local/downloads
+            .local/toolchains/delphi7
+          key: delphi7-${{ hashFiles('toolchain/inputs.json') }}
+      - name: Prepare toolchain
+        run: ./decomp setup
+      - name: Validate and verify
+        run: |
+          ./decomp check
+          xvfb-run -a ./decomp report
+      - name: Stop compiler worker
+        if: always()
+        run: test ! -x target/release/decomp || ./decomp worker stop
+      - name: Verification and progress
+        uses: actions/upload-artifact@v4
+        with:
+          name: sr1-1.7.2-steam-en-verification
+          path: |
+            .local/verification.json
+            .local/report.json
+          include-hidden-files: true
+          if-no-files-found: error

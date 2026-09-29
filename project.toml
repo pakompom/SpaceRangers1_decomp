@@ -1,0 +1,22 @@
+[project]
+binary = "game/Rangers.exe"
+source = "source"
+cache = ".local"
+database = "game/Rangers.i64"
+
+[target]
+build = "sr1-1.7.2-steam-en"
+sha256 = "8936d04b0ebf652fe9b590e82e9e83df21550488654e28032978d41c0fff9b00"
+size = 2371072
+
+[compiler]
+library = ".local/toolchains/delphi7/lib"
+executable = ".local/toolchains/delphi7-ordered/DCC32.EXE"
+wine = "wine"
+no_config = false
+source_encoding = "windows-1251"
+implicit_class_padding = true
+# D7 uses declaration ordinals in register allocation; preserve the Pascal order.
+source_method_order = true
+locale = "ru_RU.UTF-8"
+flags = ["-$O+", "-$R-", "-$Q-", "-$B-"]

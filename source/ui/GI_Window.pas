@@ -1,0 +1,258 @@
+unit GI_Window;
+// Unit bracket (inferred): CODE 0x0047B834..0x0047C463; inclusive evidence, not full bounds.
+
+interface
+
+uses EC_BlockPar, GI_Image, GI_MessageLoop, GI_Panel, Types;
+
+type
+  TWindowGI = class(TPanelGI) // @size $14C
+  public
+    LeftImage: TImageGI; // @offset $118
+    RightImage: TImageGI; // @offset $11C
+    TopImage: TImageGI; // @offset $120
+    BottomImage: TImageGI; // @offset $124
+    TopLeftImage: TImageGI; // @offset $128
+    TopRightImage: TImageGI; // @offset $12C
+    BottomLeftImage: TImageGI; // @offset $130
+    BottomRightImage: TImageGI; // @offset $134
+    TextureImage: TImageGI; // @offset $138
+    WorkSubRect: TRect; // @offset $13C
+
+    constructor Create(Owner: TObjectGI); // @addr $47B948
+    destructor Destroy; override; // @addr $47BACC
+    function AlignSizeToBorderTiles(Size: TPoint): TPoint; // @addr $47BBC0
+    procedure UpdateBorderLayout; // @addr $47BC98
+    procedure LoadFromConfigPath(const Path: WideString); override; // @addr $47C068
+    procedure LoadFromBlock(Block: TBlockParEC); override; // @addr $47C094
+    procedure LoadWindowProperties(Block: TBlockParEC); // @addr $47C0B0
+    procedure UpdateAutoGeometry; override; // @addr $47C404
+  end;
+
+implementation
+
+// @unit-initialization $47C45C
+// @unit-finalization $47C42C
+
+uses Classes, GI_Main, GR_Main, Math;
+
+{ @routine $47B948 TWindowGI_Create }
+constructor TWindowGI.Create(Owner: TObjectGI);
+const FrameImageDepth = 1000000;
+begin
+  inherited Create(Owner);
+  LeftImage := TImageGI.Create(Self);
+  LeftImage.SetDepth(FrameImageDepth);
+  RightImage := TImageGI.Create(Self);
+  RightImage.SetDepth(FrameImageDepth);
+  TopImage := TImageGI.Create(Self);
+  TopImage.SetDepth(FrameImageDepth);
+  BottomImage := TImageGI.Create(Self);
+  BottomImage.SetDepth(FrameImageDepth);
+  TopLeftImage := TImageGI.Create(Self);
+  TopLeftImage.SetDepth(FrameImageDepth);
+  TopRightImage := TImageGI.Create(Self);
+  TopRightImage.SetDepth(FrameImageDepth);
+  BottomLeftImage := TImageGI.Create(Self);
+  BottomLeftImage.SetDepth(FrameImageDepth);
+  BottomRightImage := TImageGI.Create(Self);
+  BottomRightImage.SetDepth(FrameImageDepth);
+  TextureImage := TImageGI.Create(Self);
+  TextureImage.SetDepth(FrameImageDepth);
+end;
+{ @end $47B948 }
+
+{ @routine $47BACC TWindowGI_Destroy }
+destructor TWindowGI.Destroy;
+begin
+  if LeftImage <> nil then
+  begin
+    LeftImage.Free;
+    LeftImage := nil;
+  end;
+  if RightImage <> nil then
+  begin
+    RightImage.Free;
+    RightImage := nil;
+  end;
+  if TopImage <> nil then
+  begin
+    TopImage.Free;
+    TopImage := nil;
+  end;
+  if BottomImage <> nil then
+  begin
+    BottomImage.Free;
+    BottomImage := nil;
+  end;
+  if TopLeftImage <> nil then
+  begin
+    TopLeftImage.Free;
+    TopLeftImage := nil;
+  end;
+  if TopRightImage <> nil then
+  begin
+    TopRightImage.Free;
+    TopRightImage := nil;
+  end;
+  if BottomLeftImage <> nil then
+  begin
+    BottomLeftImage.Free;
+    BottomLeftImage := nil;
+  end;
+  if BottomRightImage <> nil then
+  begin
+    BottomRightImage.Free;
+    BottomRightImage := nil;
+  end;
+  if TextureImage <> nil then
+  begin
+    TextureImage.Free;
+    TextureImage := nil;
+  end;
+  inherited Destroy;
+end;
+{ @end $47BACC }
+
+{ @routine $47BBC0 TWindowGI_AlignSizeToBorderTiles }
+function TWindowGI.AlignSizeToBorderTiles(Size: TPoint): TPoint;
+var BorderSize: Integer; CornerSize, TileSize: TPoint;
+begin
+  CornerSize := TopLeftImage.GetContentSize;
+  TileSize := TopRightImage.GetContentSize;
+  BorderSize := CornerSize.X + TileSize.X;
+  if Size.X <= BorderSize then Result.X := BorderSize
+  else
+  begin
+    TileSize := TopImage.GetContentSize;
+    Result.X := Ceil((Size.X - BorderSize) / TileSize.X) * TileSize.X + BorderSize;
+  end;
+  TileSize := BottomLeftImage.GetContentSize;
+  BorderSize := CornerSize.Y + TileSize.Y;
+  if Size.Y <= BorderSize then Result.Y := BorderSize
+  else
+  begin
+    TileSize := LeftImage.GetContentSize;
+    Result.Y := Ceil((Size.Y - BorderSize) / TileSize.Y) * TileSize.Y + BorderSize;
+  end;
+end;
+{ @end $47BBC0 }
+
+{ @routine $47BC98 TWindowGI_UpdateBorderLayout }
+procedure TWindowGI.UpdateBorderLayout;
+var First, Last, Width, Height: Integer;
+begin
+  TopLeftImage.SetSize(TopLeftImage.GetContentSize);
+  TopLeftImage.SetPosition(Classes.Point(0, 0));
+  TopRightImage.SetSize(TopRightImage.GetContentSize);
+  TopRightImage.SetPosition(Classes.Point(ClientSize.X - TopRightImage.ClientSize.X, 0));
+  BottomLeftImage.SetSize(BottomLeftImage.GetContentSize);
+  BottomLeftImage.SetPosition(Classes.Point(0, ClientSize.Y - BottomLeftImage.ClientSize.Y));
+  BottomRightImage.SetSize(BottomRightImage.GetContentSize);
+  BottomRightImage.SetPosition(Classes.Point(ClientSize.X - BottomRightImage.ClientSize.X,
+    ClientSize.Y - BottomRightImage.ClientSize.Y));
+  First := TopLeftImage.ClientSize.X;
+  Last := ClientSize.X - TopRightImage.ClientSize.X;
+  if Last - First <= 0 then TopImage.SetActive(False)
+  else
+  begin
+    TopImage.SetActive(True);
+    TopImage.SetSize(Classes.Point(Last - First, TopImage.GetContentSize.Y));
+    TopImage.SetPosition(Classes.Point(First, 0));
+    TopImage.SetImageKindX(ikxLeftFill);
+  end;
+  First := BottomLeftImage.ClientSize.X;
+  Last := ClientSize.X - BottomRightImage.ClientSize.X;
+  if Last - First <= 0 then BottomImage.SetActive(False)
+  else
+  begin
+    BottomImage.SetActive(True);
+    BottomImage.SetSize(Classes.Point(Last - First, BottomImage.GetContentSize.Y));
+    BottomImage.SetPosition(Classes.Point(First, ClientSize.Y - BottomImage.ClientSize.Y));
+    BottomImage.SetImageKindX(ikxLeftFill);
+  end;
+  First := TopLeftImage.ClientSize.Y;
+  Last := ClientSize.Y - BottomLeftImage.ClientSize.Y;
+  if Last - First <= 0 then LeftImage.SetActive(False)
+  else
+  begin
+    LeftImage.SetActive(True);
+    LeftImage.SetSize(Classes.Point(LeftImage.GetContentSize.X, Last - First));
+    LeftImage.SetPosition(Classes.Point(0, First));
+    LeftImage.SetImageKindY(ikyTopFill);
+  end;
+  First := TopRightImage.ClientSize.Y;
+  Last := ClientSize.Y - BottomRightImage.ClientSize.Y;
+  if Last - First <= 0 then RightImage.SetActive(False)
+  else
+  begin
+    RightImage.SetActive(True);
+    RightImage.SetSize(Classes.Point(RightImage.GetContentSize.X, Last - First));
+    RightImage.SetPosition(Classes.Point(ClientSize.X - RightImage.ClientSize.X, First));
+    RightImage.SetImageKindY(ikyTopFill);
+  end;
+  Width := ClientSize.X - LeftImage.ClientSize.X - RightImage.ClientSize.X;
+  Height := ClientSize.Y - TopImage.ClientSize.Y - BottomImage.ClientSize.Y;
+  if (Width <= 0) or (Height <= 0) or
+    ((LeftImage.ClientSize.Y <= 0) and (TopImage.ClientSize.X <= 0)) then TextureImage.SetActive(False)
+  else
+  begin
+    TextureImage.SetActive(True);
+    TextureImage.SetPosition(Classes.Point(LeftImage.ClientSize.X, TopImage.ClientSize.Y));
+    TextureImage.SetSize(Classes.Point(Width, Height));
+    TextureImage.SetImageKindX(ikxLeftFill);
+    TextureImage.SetImageKindY(ikyTopFill);
+  end;
+end;
+{ @end $47BC98 }
+
+{ @routine $47C068 TWindowGI_LoadFromConfigPath }
+procedure TWindowGI.LoadFromConfigPath(const Path: WideString);
+begin
+  inherited LoadFromConfigPath(Path);
+  LoadWindowProperties(UiStyleConfig.GetBlockByPath(Path));
+end;
+{ @end $47C068 }
+
+{ @routine $47C094 TWindowGI_LoadFromBlock }
+procedure TWindowGI.LoadFromBlock(Block: TBlockParEC);
+begin
+  inherited LoadFromBlock(Block);
+  LoadWindowProperties(Block);
+end;
+{ @end $47C094 }
+
+{ @routine $47C0B0 TWindowGI_LoadWindowProperties }
+procedure TWindowGI.LoadWindowProperties(Block: TBlockParEC);
+begin
+  if Block.CountParams('ImageTopLeft') > 0 then
+    TopLeftImage.SetImagePath(Block.GetParam('ImageTopLeft'));
+  if Block.CountParams('ImageTopRight') > 0 then
+    TopRightImage.SetImagePath(Block.GetParam('ImageTopRight'));
+  if Block.CountParams('ImageBottomLeft') > 0 then
+    BottomLeftImage.SetImagePath(Block.GetParam('ImageBottomLeft'));
+  if Block.CountParams('ImageBottomRight') > 0 then
+    BottomRightImage.SetImagePath(Block.GetParam('ImageBottomRight'));
+  if Block.CountParams('ImageLeft') > 0 then
+    LeftImage.SetImagePath(Block.GetParam('ImageLeft'));
+  if Block.CountParams('ImageRight') > 0 then
+    RightImage.SetImagePath(Block.GetParam('ImageRight'));
+  if Block.CountParams('ImageTop') > 0 then
+    TopImage.SetImagePath(Block.GetParam('ImageTop'));
+  if Block.CountParams('ImageBottom') > 0 then
+    BottomImage.SetImagePath(Block.GetParam('ImageBottom'));
+  if Block.CountParams('ImageTexture') > 0 then
+    TextureImage.SetImagePath(Block.GetParam('ImageTexture'));
+  if Block.CountParams('WorkSubRect') > 0 then WorkSubRect := GetRectGI(Block.GetParam('WorkSubRect'));
+end;
+{ @end $47C0B0 }
+
+{ @routine $47C404 TWindowGI_UpdateAutoGeometry }
+procedure TWindowGI.UpdateAutoGeometry;
+begin
+  SetSize(AlignSizeToBorderTiles(ClientSize));
+  UpdateBorderLayout;
+end;
+{ @end $47C404 }
+
+end.
