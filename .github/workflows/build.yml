@@ -50,19 +50,27 @@ jobs:
           key: delphi7-${{ hashFiles('toolchain/inputs.json') }}
       - name: Prepare toolchain
         run: ./decomp setup
-      - name: Validate and verify
+      - name: Validate source
+        run: ./decomp check
+      - name: Generate verified progress report
+        id: report
         run: |
-          ./decomp check
           xvfb-run -a ./decomp report
+          python3 -c 'import tomllib; print("build=" + tomllib.load(open("project.toml", "rb"))["target"]["build"])' >> "$GITHUB_OUTPUT"
+      - name: decomp.dev report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.report.outputs.build }}_report
+          path: .local/report.json
+          include-hidden-files: true
+          if-no-files-found: error
       - name: Stop compiler worker
         if: always()
         run: test ! -x target/release/decomp || ./decomp worker stop
-      - name: Verification and progress
+      - name: Verification record
         uses: actions/upload-artifact@v4
         with:
-          name: sr1-1.7.2-steam-en-verification
-          path: |
-            .local/verification.json
-            .local/report.json
+          name: verification-linux
+          path: .local/verification.json
           include-hidden-files: true
           if-no-files-found: error
